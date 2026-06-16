@@ -14,8 +14,9 @@ public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExcep
         }
         catch (Exception ex)
         {
+            // Sanitize request fields to prevent log-injection (log forging).
             logger.LogError(ex, "Unhandled exception for {Method} {Path}",
-                context.Request.Method, context.Request.Path);
+                Sanitize(context.Request.Method), Sanitize(context.Request.Path));
 
             await HandleExceptionAsync(context, ex);
         }
@@ -42,4 +43,8 @@ public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExcep
 
         return context.Response.WriteAsync(JsonSerializer.Serialize(errorResponse));
     }
+
+    /// <summary>Removes newline characters from a value to prevent log-injection attacks.</summary>
+    private static string Sanitize(string? value) =>
+        value?.Replace("\r", " ").Replace("\n", " ").Trim() ?? string.Empty;
 }

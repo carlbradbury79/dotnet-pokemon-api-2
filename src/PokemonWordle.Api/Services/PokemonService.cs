@@ -24,8 +24,9 @@ public class PokemonService(HttpClient httpClient, ILogger<PokemonService> logge
 
             if (!response.IsSuccessStatusCode)
             {
+                // Sanitize the user-supplied value to prevent log forging.
                 logger.LogWarning("PokeAPI returned {StatusCode} for pokemon '{NameOrId}'",
-                    response.StatusCode, nameOrId);
+                    response.StatusCode, Sanitize(nameOrId));
                 return null;
             }
 
@@ -46,8 +47,13 @@ public class PokemonService(HttpClient httpClient, ILogger<PokemonService> logge
         }
         catch (HttpRequestException ex)
         {
-            logger.LogError(ex, "Failed to contact PokeAPI for pokemon '{NameOrId}'", nameOrId);
+            logger.LogError(ex, "Failed to contact PokeAPI for pokemon '{NameOrId}'", Sanitize(nameOrId));
             return null;
         }
     }
+
+    /// <summary>Removes newline characters from a value to prevent log-injection attacks.</summary>
+    private static string Sanitize(string? value) =>
+        value?.Replace("\r", " ").Replace("\n", " ").Trim() ?? string.Empty;
 }
+

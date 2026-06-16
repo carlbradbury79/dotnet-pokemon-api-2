@@ -88,7 +88,7 @@ public class GameService(
 
         logger.LogInformation(
             "Game {GameId}: guess '{PokemonName}' — correct={IsCorrect}, status={Status}",
-            gameId, pokemonName, isCorrect, game.Status);
+            gameId, Sanitize(pokemonName), isCorrect, game.Status);
 
         return (game, hints);
     }
@@ -110,4 +110,8 @@ public class GameService(
             GenerationHint = generationHint
         };
     }
+
+    /// <summary>Removes newline characters from a value to prevent log-injection attacks.</summary>
+    private static string Sanitize(string? value) =>
+        value?.Replace("\r", " ").Replace("\n", " ").Trim() ?? string.Empty;
 }

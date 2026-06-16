@@ -7,8 +7,8 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:5000",
-      "description": "Base URL for the API. Change to https://localhost:5001 to use HTTPS."
+      "value": "http://localhost:5141",
+      "description": "Base URL for the API. Change to https://localhost:7208 to use HTTPS."
     },
     {
       "key": "gameId",

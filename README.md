@@ -49,7 +49,7 @@ cd src/PokemonWordle.Api
 dotnet run
 ```
 
-The API starts at `http://localhost:5000` (or `https://localhost:5001`).  
+The API starts at `http://localhost:5141` (or `https://localhost:7208`).  
 Swagger UI is available at `/openapi/v1.json` in development.
 
 ---
@@ -68,7 +68,7 @@ The test suite uses **xUnit**, **Moq**, and **FluentAssertions**.
 
 Import `postman/PokemonWordle.postman_collection.json` into Postman.  
 The collection:
-- Sets `baseUrl` to `http://localhost:5000`
+- Sets `baseUrl` to `http://localhost:5141` (matches `launchSettings.json`)
 - Automatically stores the `gameId` from **Create Game** for use in subsequent requests
 - Includes test assertions on each request
 
