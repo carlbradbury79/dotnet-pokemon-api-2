@@ -28,7 +28,7 @@ builder.Services.AddHttpClient<IPokemonService, PokemonService>(client =>
 // Singleton keeps game state alive for the lifetime of the process.
 // Replace with a database-backed implementation for a production app.
 builder.Services.AddSingleton<IGameService, GameService>();
-builder.Services.AddScoped<IDailyPokemonService, DailyPokemonService>();
+builder.Services.AddSingleton<IDailyPokemonService, DailyPokemonService>();
 
 // ── Build ─────────────────────────────────────────────────────────────────────
 var app = builder.Build();
