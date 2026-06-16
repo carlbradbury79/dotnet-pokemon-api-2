@@ -1,0 +1,272 @@
+{
+  "info": {
+    "name": "PokemonWordle API",
+    "description": "A bare-bones Pokémon Wordle-like game API.\n\nHow to play:\n1. Call **Get Daily Pokemon** to see today's Pokédex number (a hint — not the name!).\n2. Call **Create Game** to start a session and get a `gameId`.\n3. Call **Submit Guess** up to 6 times with a Pokémon name.\n4. Check **hints** in each response: `sharesType` and `generationHint` guide you.\n5. Call **Get Game State** at any time to review your progress.\n\nThe `gameId` variable is set automatically from the Create Game response.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "description": "Base URL for the API. Change to https://localhost:5001 to use HTTPS."
+    },
+    {
+      "key": "gameId",
+      "value": "",
+      "description": "Set automatically after calling Create Game."
+    }
+  ],
+  "item": [
+    {
+      "name": "Daily Pokemon",
+      "item": [
+        {
+          "name": "Get Daily Pokemon",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/daily-pokemon",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "daily-pokemon"]
+            },
+            "description": "Returns today's Pokédex number without revealing the name — use it as a hint. The same number is returned for all players on the same UTC day."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response contains date and pokemonNumber', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('date');",
+                  "    pm.expect(body.pokemonNumber).to.be.a('number').and.to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Games",
+      "item": [
+        {
+          "name": "Create Game",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/games",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "games"]
+            },
+            "description": "Starts a new game tied to today's daily Pokémon. The `gameId` from the response is stored in the collection variable automatically."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response contains gameId and maxAttempts', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.gameId).to.be.a('string');",
+                  "    pm.expect(body.maxAttempts).to.eql(6);",
+                  "    // Store the gameId for subsequent requests",
+                  "    pm.collectionVariables.set('gameId', body.gameId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Game State",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/games/{{gameId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "games", "{{gameId}}"]
+            },
+            "description": "Returns the current state of the game: attempt history, remaining guesses, and status. The answer is only revealed once the game is over."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response contains game fields', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.gameId).to.be.a('string');",
+                  "    pm.expect(body.status).to.be.a('string');",
+                  "    pm.expect(body.attemptsRemaining).to.be.a('number');",
+                  "    pm.expect(body.attempts).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Game State — Not Found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/games/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "games", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Demonstrates the 404 response for an unknown game ID."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Guesses",
+      "item": [
+        {
+          "name": "Submit Guess — Incorrect",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pokemonName\": \"charmander\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/games/{{gameId}}/guesses",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "games", "{{gameId}}", "guesses"]
+            },
+            "description": "Submit a guess. The response includes hints to guide your next guess:\n- `sharesType`: true if your guess shares a type with the daily Pokémon.\n- `generationHint`: 'higher', 'lower', or 'correct' — points you toward the right generation."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has required fields', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('isCorrect');",
+                  "    pm.expect(body).to.have.property('attemptsRemaining');",
+                  "    pm.expect(body).to.have.property('gameStatus');",
+                  "    pm.expect(body.hints).to.have.property('sharesType');",
+                  "    pm.expect(body.hints).to.have.property('generationHint');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit Guess — Invalid Pokémon",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pokemonName\": \"notapokemon\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/games/{{gameId}}/guesses",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "games", "{{gameId}}", "guesses"]
+            },
+            "description": "An invalid Pokémon name returns a 400 error and does NOT count as an attempt."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error message is present', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit Guess — On Completed Game",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pokemonName\": \"pikachu\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/games/{{gameId}}/guesses",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "games", "{{gameId}}", "guesses"]
+            },
+            "description": "Guessing on a game that has already been won or lost returns a 409 Conflict."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Run this request AFTER winning or exhausting all attempts on the same gameId.",
+                  "pm.test('Status code is 409 if game is already complete', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 409]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
