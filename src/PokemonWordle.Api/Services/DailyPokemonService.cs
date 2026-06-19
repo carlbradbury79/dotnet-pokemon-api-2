@@ -4,7 +4,7 @@ namespace PokemonWordle.Api.Services;
 
 public class DailyPokemonService(IConfiguration configuration) : IDailyPokemonService
 {
-    private readonly int _totalPokemon = configuration.GetValue<int>("Game:TotalPokemon", 151);
+    private readonly int _totalPokemon = Math.Max(1, configuration.GetValue<int>("Game:TotalPokemon", 151));
 
     /// <inheritdoc />
     public int GetDailyPokemonId()
