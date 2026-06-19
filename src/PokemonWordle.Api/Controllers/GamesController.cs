@@ -36,8 +36,7 @@ public class GamesController(IGameService gameService) : ControllerBase
         var game = await gameService.GetGameAsync(gameId);
 
         if (game is null)
-            return NotFound(new { message = $"Game '{gameId}' not found." });
-
+            return NotFound(new { status = StatusCodes.Status404NotFound, message = $"Game with ID '{gameId}' was not found." });
         return Ok(MapToGameStateResponse(game));
     }
 
