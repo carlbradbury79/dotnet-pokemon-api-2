@@ -1,6 +1,11 @@
 @PokemonWordle.Api_HostAddress = http://localhost:5141
 
-GET {{PokemonWordle.Api_HostAddress}}/weatherforecast/
+GET {{PokemonWordle.Api_HostAddress}}/api/daily-pokemon
+Accept: application/json
+
+###
+
+POST {{PokemonWordle.Api_HostAddress}}/api/games
 Accept: application/json
 
 ###
