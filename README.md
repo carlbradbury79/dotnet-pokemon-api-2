@@ -50,7 +50,7 @@ dotnet run
 ```
 
 The API starts at `http://localhost:5141` (or `https://localhost:7208`).  
-Swagger UI is available at `/openapi/v1.json` in development.
+OpenAPI spec is available at `/openapi/v1.json` in development.
 
 ---
 
