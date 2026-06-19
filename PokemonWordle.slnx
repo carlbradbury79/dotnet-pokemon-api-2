@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PokemonWordle.Api/PokemonWordle.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PokemonWordle.Tests/PokemonWordle.Tests.csproj" />
+  </Folder>
+</Solution>
