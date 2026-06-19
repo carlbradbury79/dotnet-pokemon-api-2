@@ -66,26 +66,23 @@ public class GameService(
 
         var hints = BuildHints(guessedPokemon, game.DailyPokemon);
 
-        var attempt = new Attempt
+        lock (game)
         {
-            PokemonName = guessedPokemon.Name,
-            IsCorrect = isCorrect,
-            SharesType = hints.SharesType,
-            GenerationHint = hints.GenerationHint,
-            SubmittedAt = DateTime.UtcNow
-        };
+            if (game.Status != GameStatus.InProgress)
+                throw new GameAlreadyCompleteException(gameId);
 
-        game.Attempts.Add(attempt);
+            game.Attempts.Add(new Attempt
+            {
+                PokemonName = guessedPokemon.Name,
+                IsCorrect = isCorrect,
+                SharesType = hints.SharesType,
+                GenerationHint = hints.GenerationHint,
+                SubmittedAt = DateTime.UtcNow
+            });
 
-        if (isCorrect)
-        {
-            game.Status = GameStatus.Won;
+            if (isCorrect) game.Status = GameStatus.Won;
+            else if (game.AttemptsUsed >= Game.MaxAttempts) game.Status = GameStatus.Lost;
         }
-        else if (game.AttemptsUsed >= Game.MaxAttempts)
-        {
-            game.Status = GameStatus.Lost;
-        }
-
         logger.LogInformation(
             "Game {GameId}: guess '{PokemonName}' — correct={IsCorrect}, status={Status}",
             gameId, Sanitize(pokemonName), isCorrect, game.Status);
