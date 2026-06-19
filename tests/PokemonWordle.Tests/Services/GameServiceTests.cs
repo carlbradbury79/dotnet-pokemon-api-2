@@ -170,7 +170,7 @@ public class GameServiceTests
     }
 
     [Fact]
-    public async Task SubmitGuess_WithSharedType_ReturnsSharesToTypeTrue()
+    public async Task SubmitGuess_WithSharedType_ReturnsSharesTypeTrue()
     {
         var daily = BuildPokemon(25, "pikachu", ["electric"]);
         SetupDailyPokemon(daily);
