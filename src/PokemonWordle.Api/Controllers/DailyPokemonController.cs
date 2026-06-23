@@ -6,7 +6,7 @@ namespace PokemonWordle.Api.Controllers;
 
 [ApiController]
 [Route("api/daily-pokemon")]
-public class DailyPokemonController(IDailyPokemonService dailyPokemonService) : ControllerBase
+public class DailyPokemonController(IDailyPokemonService dailyPokemonService, IPokemonService pokemonService) : ControllerBase
 {
     /// <summary>
     /// Returns today's Pokemon number (national Pokedex ID) as a hint.
@@ -14,14 +14,20 @@ public class DailyPokemonController(IDailyPokemonService dailyPokemonService) : 
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(DailyPokemonResponse), StatusCodes.Status200OK)]
-    public IActionResult GetDailyPokemon()
+    public async Task<IActionResult> GetDailyPokemon()
     {
         var pokemonId = dailyPokemonService.GetDailyPokemonId();
+        var pokemon = await pokemonService.GetPokemonByIdAsync(pokemonId);
 
+        if (pokemon == null)
+        {
+            return NotFound();
+        }
         return Ok(new DailyPokemonResponse
         {
             Date = DateOnly.FromDateTime(DateTime.UtcNow),
-            PokemonNumber = pokemonId
+            PokemonNumber = pokemonId,
+            PokemonNameLength = pokemon.Name.Length
         });
     }
 }

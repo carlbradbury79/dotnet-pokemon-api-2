@@ -8,4 +8,5 @@ public class DailyPokemonResponse
     /// The national Pokedex number of today's Pokemon — a hint without spoiling the name.
     /// </summary>
     public int PokemonNumber { get; set; }
+    public int PokemonNameLength { get; set; }
 }
