@@ -56,15 +56,13 @@ public class GameService(
             throw new GameAlreadyCompleteException(gameId);
 
         var guessedPokemon = await pokemonService.GetPokemonByNameAsync(pokemonName);
-        if (guessedPokemon is null)
-            throw new InvalidPokemonException(pokemonName);
 
         var isCorrect = string.Equals(
-            guessedPokemon.Name,
+            guessedPokemon?.Name ?? pokemonName,
             game.DailyPokemon.Name,
             StringComparison.OrdinalIgnoreCase);
 
-        var hints = BuildHints(guessedPokemon, game.DailyPokemon);
+        var hints = BuildHints(guessedPokemon, game.DailyPokemon, pokemonName);
 
         lock (game)
         {
@@ -73,7 +71,7 @@ public class GameService(
 
             game.Attempts.Add(new Attempt
             {
-                PokemonName = guessedPokemon.Name,
+                PokemonName = guessedPokemon?.Name ?? pokemonName,
                 IsCorrect = isCorrect,
                 SharesType = hints.SharesType,
                 GenerationHint = hints.GenerationHint,
@@ -90,21 +88,61 @@ public class GameService(
         return (game, hints);
     }
 
-    private static GuessHints BuildHints(Pokemon guessed, Pokemon daily)
+    private static List<LetterResult> BuildLetterHints(string guess, string answer)
     {
-        var sharesType = guessed.Types.Intersect(daily.Types, StringComparer.OrdinalIgnoreCase).Any();
+        // Normalise to uppercase, strip non-alpha if desired
+        var g = guess.ToUpperInvariant();
+        var a = answer.ToUpperInvariant();
 
-        var generationHint = guessed.Generation.CompareTo(daily.Generation) switch
+        var results = Enumerable.Repeat(LetterResult.Absent, g.Length).ToArray();
+        var answerPool = a.ToCharArray();         // tracks which answer letters are "unconsumed"
+
+        // Pass 1: exact matches
+        for (int i = 0; i < g.Length; i++)
+        {
+            if (i < a.Length && g[i] == a[i])
+            {
+                results[i] = LetterResult.Correct;
+                answerPool[i] = '\0'; // consume
+            }
+        }
+
+        // Pass 2: present but wrong position
+        for (int i = 0; i < g.Length; i++)
+        {
+            if (results[i] == LetterResult.Correct) continue;
+
+            int poolIdx = Array.IndexOf(answerPool, g[i]);
+            if (poolIdx >= 0)
+            {
+                results[i] = LetterResult.Present;
+                answerPool[poolIdx] = '\0'; // consume so duplicates aren't double-counted
+            }
+            // else stays Absent
+        }
+
+        return results.ToList();
+    }
+
+    private static GuessHints BuildHints(Pokemon? guessed, Pokemon daily, string guessedName)
+    {
+        var sharesType = guessed is not null &&
+            guessed.Types.Intersect(daily.Types, StringComparer.OrdinalIgnoreCase).Any();
+
+        var generationHint = guessed is null ? "unknown" : guessed.Generation.CompareTo(daily.Generation) switch
         {
             < 0 => "higher",
             > 0 => "lower",
             _ => "correct"
         };
 
+        var letterHints = BuildLetterHints(guessedName, daily.Name);
+
         return new GuessHints
         {
             SharesType = sharesType,
-            GenerationHint = generationHint
+            GenerationHint = generationHint,
+            LetterHints = letterHints
         };
     }
 
