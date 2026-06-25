@@ -1,5 +1,7 @@
 namespace PokemonWordle.Api.DTOs;
 
+public enum LetterResult { Correct, Present, Absent }
+
 public class GuessHints
 {
     /// <summary>True if the guessed Pokemon shares at least one type with the daily Pokemon.</summary>
@@ -10,4 +12,5 @@ public class GuessHints
     /// relative to the guessed Pokemon.
     /// </summary>
     public string GenerationHint { get; set; } = string.Empty;
+    public List<LetterResult> LetterHints { get; set; } = [];
 }

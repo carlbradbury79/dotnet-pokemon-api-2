@@ -5,6 +5,7 @@ using PokemonWordle.Api.Exceptions;
 using PokemonWordle.Api.Models;
 using PokemonWordle.Api.Services;
 using PokemonWordle.Api.Services.Interfaces;
+using PokemonWordle.Api.DTOs;
 
 namespace PokemonWordle.Tests.Services;
 
@@ -157,16 +158,19 @@ public class GameServiceTests
     }
 
     [Fact]
-    public async Task SubmitGuess_WithInvalidPokemonName_ThrowsInvalidPokemonException()
+    public async Task SubmitGuess_WithUnknownName_IsRecordedAsAttempt()
     {
         SetupDailyPokemon(BuildPokemon(25, "pikachu", ["electric"]));
         _pokemonServiceMock.Setup(s => s.GetPokemonByNameAsync("notapokemon")).ReturnsAsync((Pokemon?)null);
 
         var game = await _sut.CreateGameAsync();
+        var (updatedGame, hints) = await _sut.SubmitGuessAsync(game.Id, "notapokemon");
 
-        var act = () => _sut.SubmitGuessAsync(game.Id, "notapokemon");
-
-        await act.Should().ThrowAsync<InvalidPokemonException>();
+        updatedGame.Attempts.Should().HaveCount(1);
+        updatedGame.Attempts[0].PokemonName.Should().Be("notapokemon");
+        updatedGame.Attempts[0].IsCorrect.Should().BeFalse();
+        hints.SharesType.Should().BeFalse();
+        hints.GenerationHint.Should().Be("unknown");
     }
 
     [Fact]
@@ -195,6 +199,100 @@ public class GameServiceTests
         var (_, hints) = await _sut.SubmitGuessAsync(game.Id, "cyndaquil");
 
         hints.GenerationHint.Should().Be("lower");
+    }
+
+    // ── BuildLetterHints ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task SubmitGuess_ExactMatch_AllLetterHintsAreCorrect()
+    {
+        var daily = BuildPokemon(25, "pikachu", ["electric"]);
+        SetupDailyPokemon(daily);
+        _pokemonServiceMock.Setup(s => s.GetPokemonByNameAsync("pikachu")).ReturnsAsync(daily);
+
+        var game = await _sut.CreateGameAsync();
+        var (_, hints) = await _sut.SubmitGuessAsync(game.Id, "pikachu");
+
+        hints.LetterHints.Should().OnlyContain(r => r == LetterResult.Correct);
+    }
+
+    [Fact]
+    public async Task SubmitGuess_NoLettersInCommon_AllLetterHintsAreAbsent()
+    {
+        // answer has only 'a's; guess has only 'b's — zero overlap
+        var daily = BuildPokemon(1, "aaa", ["normal"]);
+        SetupDailyPokemon(daily);
+        var guess = BuildPokemon(2, "bbb", ["fire"]);
+        _pokemonServiceMock.Setup(s => s.GetPokemonByNameAsync("bbb")).ReturnsAsync(guess);
+
+        var game = await _sut.CreateGameAsync();
+        var (_, hints) = await _sut.SubmitGuessAsync(game.Id, "bbb");
+
+        hints.LetterHints.Should().OnlyContain(r => r == LetterResult.Absent);
+    }
+
+    [Fact]
+    public async Task SubmitGuess_CorrectLettersInWrongPosition_MarkedPresent()
+    {
+        // guess="act", answer="cat" → [Present, Present, Correct]
+        var daily = BuildPokemon(1, "cat", ["normal"]);
+        SetupDailyPokemon(daily);
+        var guess = BuildPokemon(2, "act", ["fire"]);
+        _pokemonServiceMock.Setup(s => s.GetPokemonByNameAsync("act")).ReturnsAsync(guess);
+
+        var game = await _sut.CreateGameAsync();
+        var (_, hints) = await _sut.SubmitGuessAsync(game.Id, "act");
+
+        hints.LetterHints.Should().Equal(LetterResult.Present, LetterResult.Present, LetterResult.Correct);
+    }
+
+    [Fact]
+    public async Task SubmitGuess_DuplicateLetterInGuessButOnlyOneInAnswer_SecondOccurrenceIsAbsent()
+    {
+        // guess="aab", answer="bca" — answer has one 'a'; only first 'a' in guess should be Present
+        // Pass1: no exact matches. Pass2: guess[0]='a' → Present (consumes pool 'a'); guess[1]='a' → Absent
+        var daily = BuildPokemon(1, "bca", ["normal"]);
+        SetupDailyPokemon(daily);
+        var guess = BuildPokemon(2, "aab", ["fire"]);
+        _pokemonServiceMock.Setup(s => s.GetPokemonByNameAsync("aab")).ReturnsAsync(guess);
+
+        var game = await _sut.CreateGameAsync();
+        var (_, hints) = await _sut.SubmitGuessAsync(game.Id, "aab");
+
+        hints.LetterHints.Should().Equal(LetterResult.Present, LetterResult.Absent, LetterResult.Present);
+    }
+
+    [Fact]
+    public async Task SubmitGuess_GuessLongerThanAnswer_ExtraLettersAreAbsent()
+    {
+        // guess="abcde", answer="abc" → first three Correct, last two Absent
+        var daily = BuildPokemon(1, "abc", ["normal"]);
+        SetupDailyPokemon(daily);
+        var guess = BuildPokemon(2, "abcde", ["fire"]);
+        _pokemonServiceMock.Setup(s => s.GetPokemonByNameAsync("abcde")).ReturnsAsync(guess);
+
+        var game = await _sut.CreateGameAsync();
+        var (_, hints) = await _sut.SubmitGuessAsync(game.Id, "abcde");
+
+        hints.LetterHints.Should().Equal(
+            LetterResult.Correct, LetterResult.Correct, LetterResult.Correct,
+            LetterResult.Absent, LetterResult.Absent);
+    }
+
+    [Fact]
+    public async Task SubmitGuess_GuessShorterThanAnswer_HintsOnlyCoverGuessLength()
+    {
+        // guess="abc", answer="abcde" → only three hints, all Correct
+        var daily = BuildPokemon(1, "abcde", ["normal"]);
+        SetupDailyPokemon(daily);
+        var guess = BuildPokemon(2, "abc", ["fire"]);
+        _pokemonServiceMock.Setup(s => s.GetPokemonByNameAsync("abc")).ReturnsAsync(guess);
+
+        var game = await _sut.CreateGameAsync();
+        var (_, hints) = await _sut.SubmitGuessAsync(game.Id, "abc");
+
+        hints.LetterHints.Should().HaveCount(3)
+            .And.OnlyContain(r => r == LetterResult.Correct);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
